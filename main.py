@@ -73,7 +73,7 @@ def subway_sign_data(STOP_ID, API_KEY):
             direction.append('INBOUND')
 
         # get the headsign from the trip id
-        trip = json.loads((requests.get('https://api-v3.mbta.com/trips/%s'%(trip)).text))
+        trip = json.loads((requests.get('https://api-v3.mbta.com/trips/%s?api_key=%s'%(trip, API_KEY)).text))
         headsign_txt = trip['data']['attributes']['headsign']
         headsign.append(headsign_txt)
 
@@ -84,9 +84,13 @@ def subway_sign_data(STOP_ID, API_KEY):
         min_away.append(tminus)
 
         # get the vehicle status
-        vehicle = json.loads((requests.get('https://api-v3.mbta.com/vehicles/%s'%(t_id)).text))
-        jprint(vehicle)
-
+        vehicle = requests.get('https://api-v3.mbta.com/vehicles/%s?api_key=%s'%(t_id, API_KEY))
+        # print(vehicle.status_code)
+        vehicle = json.loads(vehicle.text)
+        
+        vehicle_status = vehicle['data']['attributes']['current_status']
+        current_stop = vehicle['data']['relationships']['stop']['data']['id']
+        # print(current_stop)
 
         # set the min string for the display
         if seconds <= 30:
@@ -98,7 +102,8 @@ def subway_sign_data(STOP_ID, API_KEY):
         
     # create a df of relevant data
     train_df = pd.DataFrame({'train_id':train_ids, 'arrival_time':arrival_time, 'trip_id':trip_id, 
-                             'headsign':headsign, 'min_away':min_away, 'min_away_str': min_away_str, 'direction':direction})
+                             'headsign':headsign, 'min_away':min_away, 'min_away_str': min_away_str,
+                             'direction':direction})
 
     # return only the trains that havent left the stop 
     return train_df.loc[train_df.min_away >= 0, :]
@@ -106,6 +111,9 @@ def subway_sign_data(STOP_ID, API_KEY):
 
 # main
 if __name__ == '__main__':
+    # stop_data = json.loads(requests.get('https://api-v3.mbta.com/stops/%s' %('place-bvmnl')).text)
+    # jprint(stop_data)
+
     with open('credentials.txt', 'r') as f:
         API_KEY = f.read().strip()
     STOP_ID = 'place-bvmnl' # brookline village...this actually the parent station id
