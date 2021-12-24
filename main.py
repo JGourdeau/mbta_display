@@ -12,15 +12,6 @@ def jprint(obj):
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
 
-def get_predictions(API_KEY, STOP_ID):
-    try: 
-        response = requests.get('https://api-v3.mbta.com/predictions?api_key=%s&sort=arrival_time&filter[stop]=%s' %(API_KEY, STOP_ID))
-        response = json.loads(response.text)
-        response = response['data']
-        return response
-    except:
-        raise ValueError
-
 
 def subway_sign_data(STOP_ID, API_KEY):
     # get the time of the query 
@@ -89,7 +80,9 @@ def subway_sign_data(STOP_ID, API_KEY):
         vehicle = json.loads(vehicle.text)
         
         vehicle_status = vehicle['data']['attributes']['current_status']
-        current_stop = vehicle['data']['relationships']['stop']['data']['id']
+        print(vehicle_status)
+        current_stop = int(vehicle['data']['relationships']['stop']['data']['id'])
+        print(current_stop)
 
         # set the min string for the display
         if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in [70180, 70181]:
@@ -105,7 +98,7 @@ def subway_sign_data(STOP_ID, API_KEY):
                              'direction':direction})
 
     # return only the trains that havent left the stop 
-    return train_df.loc[train_df.min_away >= 0, :]
+    return train_df.loc[(train_df.min_away >= 0), :]
 
 
 # main
