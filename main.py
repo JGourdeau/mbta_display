@@ -1,3 +1,5 @@
+from re import S
+from pandas.core.frame import DataFrame
 import requests
 import json
 import pandas as pd
@@ -10,24 +12,34 @@ def jprint(obj):
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
 
+def get_predictions(API_KEY, STOP_ID):
+    try: 
+        response = requests.get('https://api-v3.mbta.com/predictions?api_key=%s&sort=arrival_time&filter[stop]=%s' %(API_KEY, STOP_ID))
+        response = json.loads(response.text)
+        response = response['data']
+        return response
+    except:
+        raise ValueError
+
 
 def subway_sign_data(STOP_ID, API_KEY):
     # get the time of the query 
     CURRENT_TIME = datetime.now(timezone.utc)
 
     # query the api
-    response = requests.get('https://api-v3.mbta.com/predictions?sort=arrival_time&filter[stop]=%s' %STOP_ID, 
-                            auth=('user', API_KEY))
-    
-    # handle too many requests
-    if response.status_code == 429:
+    try: 
+        response = requests.get('https://api-v3.mbta.com/predictions?api_key=%s&sort=arrival_time&filter[stop]=%s' %(API_KEY, STOP_ID))
+        # load the response data
+        response = json.loads(response.text)
+        response = response['data']
+    except:
+        # handle too many requests
         print(response.status_code)
         sleep(60)
-        response = requests.get('https://api-v3.mbta.com/predictions?sort=arrival_time&filter[stop]=%s' %STOP_ID) 
-
-    # load the response data
-    response = json.loads(response.text)
-    response = response['data']
+        response = requests.get('https://api-v3.mbta.com/predictions?api_key=%s&sort=arrival_time&filter[stop]=%s' %(API_KEY, STOP_ID))
+        # load the response data
+        response = json.loads(response.text)
+        response = response['data']
 
     # set up lists to hold relevant data
     train_ids = []
@@ -61,7 +73,7 @@ def subway_sign_data(STOP_ID, API_KEY):
             direction.append('INBOUND')
 
         # get the headsign from the trip id
-        trip = json.loads((requests.get('https://api-v3.mbta.com/trips/%s'%trip)).text)
+        trip = json.loads((requests.get('https://api-v3.mbta.com/trips/%s'%(trip)).text))
         headsign_txt = trip['data']['attributes']['headsign']
         headsign.append(headsign_txt)
 
@@ -70,6 +82,11 @@ def subway_sign_data(STOP_ID, API_KEY):
         seconds = delta.total_seconds()
         tminus = (int(round(seconds/60, 0)))
         min_away.append(tminus)
+
+        # get the vehicle status
+        vehicle = json.loads((requests.get('https://api-v3.mbta.com/vehicles/%s'%(t_id)).text))
+        jprint(vehicle)
+
 
         # set the min string for the display
         if seconds <= 30:
@@ -91,13 +108,16 @@ def subway_sign_data(STOP_ID, API_KEY):
 if __name__ == '__main__':
     with open('credentials.txt', 'r') as f:
         API_KEY = f.read().strip()
-    STOP_ID = 'place-bvmnl' #70181 #brookline village # is actually the parent_station id
-    STOP_ID = 'place-alsgr'
+    STOP_ID = 'place-bvmnl' # brookline village...this actually the parent station id
 
     train_df = subway_sign_data(STOP_ID, API_KEY)
-    train_df_in = train_df.loc[:, ['direction', 'headsign', 'min_away_str']].sort_values('direction')
+    train_df_in = train_df.loc[train_df.direction=='INBOUND', ['headsign', 'min_away_str']]
+    train_df_out = train_df.loc[train_df.direction=='OUTBOUND', ['headsign', 'min_away_str']]
     
-    print(train_df.to_string(index=False, header=False)) #, formatters={"headsign":'{}'.format, 'min_away_str':'\t{}'.format})) 
-    
-    
+    print('\n')
+    print('OUTBOUND:')
+    print(train_df_in.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
+    print('INBOUND:')
+    print(train_df_out.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
+    print("\n")
     
