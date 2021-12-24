@@ -3,7 +3,7 @@ from pandas.core.frame import DataFrame
 import requests
 import json
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from time import sleep
 
 
@@ -90,12 +90,11 @@ def subway_sign_data(STOP_ID, API_KEY):
         
         vehicle_status = vehicle['data']['attributes']['current_status']
         current_stop = vehicle['data']['relationships']['stop']['data']['id']
-        # print(current_stop)
 
         # set the min string for the display
-        if seconds <= 30:
+        if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in [70180, 70181]:
             min_away_str.append('BRD')
-        elif seconds <= 60: 
+        elif seconds <= 30:
             min_away_str.append('ARR')
         else: 
             min_away_str.append('%s min' %tminus)
@@ -123,9 +122,10 @@ if __name__ == '__main__':
     train_df_out = train_df.loc[train_df.direction=='OUTBOUND', ['headsign', 'min_away_str']]
     
     print('\n')
-    print('OUTBOUND:')
-    print(train_df_in.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
+    print("%s" %datetime.now())
     print('INBOUND:')
+    print(train_df_in.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
+    print('OUTBOUND:')
     print(train_df_out.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
     print("\n")
     
