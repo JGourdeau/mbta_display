@@ -1,10 +1,12 @@
-from re import S
-from pandas.core.frame import DataFrame
+# imports
+import pandas as pd
+from pandas.core.window.rolling import Window
 import requests
 import json
 import pandas as pd
-from datetime import date, datetime, timezone, time
+from datetime import datetime, timezone
 from time import sleep
+import tkinter as tk
 
 
 '''prints out a json object in a nice structure'''
@@ -12,7 +14,6 @@ def jprint(obj):
     # create a formatted string of the Python JSON object
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
-
 
 '''Uses the MBTA V3 api to query the predictions of a stop and reterns the incoming and outgoing
 train arrival time deltas in two seperate dataframes'''
@@ -110,30 +111,43 @@ def subway_sign_data(STOP_ID, API_KEY):
 
 '''simple text output screen generation using the dataframes of incoming and outgoing trains'''
 def update_screen(train_df_in, train_df_out):
-    print('\n')
-    print('      *----------------------------*')
-    print("      | Last Updated: %s  |" %datetime.now().strftime("%I:%M:%S %p"))
-    print('      *----------------------------*\n')
-    print('INBOUND:')
-    print(train_df_in.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
-    print('OUTBOUND:')
-    print(train_df_out.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
-    print("\n")
+    ret = ''
+    ret = ret + '\n' + ('*-----------------------------*\n') + ("| Last Updated: %s  |\n" %datetime.now().strftime("%I:%M:%S %p")) 
+    ret = ret + ('*-----------------------------*\n') 
+    ret = ret + ('\nINBOUND:\n') + (train_df_in.to_string(header=False, index=False, col_space = [20, 20], justify=['left', 'right'])) + ('\n')
+    ret = ret + ('\nOUTBOUND:\n') + (train_df_out.to_string(header=False, index=False, col_space = [20, 20], justify=['left', 'right'])) + ("\n") #col_space=[20,20],
+    return ret
+
+'''reads in credential file and returns the api_key'''
+def get_credentials(cred_file):
+    with open(cred_file, 'r') as f:
+        API_KEY = f.read().strip()
+    return API_KEY
+
+def update_window(window, screen_text):
+    pass
+
 
 
 # main
 if __name__ == '__main__':
     
     # read in the api_key
-    with open('credentials.txt', 'r') as f:
-        API_KEY = f.read().strip()
+    API_KEY = get_credentials('credentials.txt')
     
     # set the stop ID
-    STOP_ID = 'place-bvmnl' # brookline village...this actually the parent station id
+    STOP_ID = 'place-bvmnl' # brookline village.
 
     # get the times to arrival in a dataframe
     train_df_in, train_df_out = subway_sign_data(STOP_ID, API_KEY)
     
     # update the display
-    update_screen(train_df_in, train_df_out)
+    screen_text = update_screen(train_df_in, train_df_out)
+
+    window = tk.Tk()
+    window.title('MBTA Station Screen')
+    station_update = tk.Label(text=screen_text, fg="orange", bg="black", justify='left', width=30, height=20)
+    station_update.pack()
+    window.mainloop()
+
     
