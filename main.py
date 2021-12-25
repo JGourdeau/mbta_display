@@ -7,12 +7,15 @@ from datetime import date, datetime, timezone, time
 from time import sleep
 
 
+'''prints out a json object in a nice structure'''
 def jprint(obj):
     # create a formatted string of the Python JSON object
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
 
 
+'''Uses the MBTA V3 api to query the predictions of a stop and reterns the incoming and outgoing
+train arrival time deltas in two seperate dataframes'''
 def subway_sign_data(STOP_ID, API_KEY):
     # get the time of the query 
     CURRENT_TIME = datetime.now(timezone.utc)
@@ -98,29 +101,39 @@ def subway_sign_data(STOP_ID, API_KEY):
                              'direction':direction})
 
     # return only the trains that havent left the stop 
-    return train_df.loc[(train_df.min_away >= 0), :]
-
-
-# main
-if __name__ == '__main__':
-    # stop_data = json.loads(requests.get('https://api-v3.mbta.com/stops/%s' %('place-bvmnl')).text)
-    # jprint(stop_data)
-
-    with open('credentials.txt', 'r') as f:
-        API_KEY = f.read().strip()
-    STOP_ID = 'place-bvmnl' # brookline village...this actually the parent station id
-
-    train_df = subway_sign_data(STOP_ID, API_KEY)
-    train_df_in = train_df.loc[train_df.direction=='INBOUND', ['headsign', 'min_away_str']]
-    train_df_out = train_df.loc[train_df.direction=='OUTBOUND', ['headsign', 'min_away_str']]
+    train_df = train_df.loc[(train_df.min_away >= 0), :].copy()
     
+    train_df_in = train_df.loc[train_df.direction=='INBOUND',['headsign', 'min_away_str']]
+    train_df_out = train_df.loc[train_df.direction=='OUTBOUND',['headsign', 'min_away_str']]
+    
+    return train_df_in, train_df_out
+
+'''simple text output screen generation using the dataframes of incoming and outgoing trains'''
+def update_screen(train_df_in, train_df_out):
     print('\n')
-    print('--------------------------')
-    print("| Last Updated: %s |" %datetime.now().strftime("%H:%M:%S"))
-    print('--------------------------\n')
+    print('      *----------------------------*')
+    print("      | Last Updated: %s  |" %datetime.now().strftime("%I:%M:%S %p"))
+    print('      *----------------------------*\n')
     print('INBOUND:')
     print(train_df_in.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
     print('OUTBOUND:')
     print(train_df_out.to_string(header=False, index=False, col_space=[20,20], justify=['left', 'right']))
     print("\n")
+
+
+# main
+if __name__ == '__main__':
+    
+    # read in the api_key
+    with open('credentials.txt', 'r') as f:
+        API_KEY = f.read().strip()
+    
+    # set the stop ID
+    STOP_ID = 'place-bvmnl' # brookline village...this actually the parent station id
+
+    # get the times to arrival in a dataframe
+    train_df_in, train_df_out = subway_sign_data(STOP_ID, API_KEY)
+    
+    # update the display
+    update_screen(train_df_in, train_df_out)
     
