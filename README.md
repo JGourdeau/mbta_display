@@ -8,7 +8,7 @@ To change the stop simply change STOP_ID in main.py and then replace the childre
 
 Currently set for Brookline Village Station in Brookline, MA.
 
-Was developed as a quick solution to an issue and is not perfect. 
+Was developed as a quick solution to an issue and is not perfect (nor pretty). 
 
 ~~~
 --------------------------
