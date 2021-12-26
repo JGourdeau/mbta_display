@@ -1,5 +1,5 @@
 # mbta_display
-
+~~~
 --------------------------
 | Last Updated: 18:06:42 |
 --------------------------
@@ -16,3 +16,4 @@ OUTBOUND:
            Riverside               43 min
            Riverside               57 min
            Riverside               63 min
+~~~
