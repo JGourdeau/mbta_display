@@ -1,8 +1,15 @@
 # mbta_display
 
-A quick tkinter app to retrieve the predictions for boston subway stops from commandline using mbta's V3 API. 
+A quick tkinter app which displays the predictions for Boston subway stops using mbta's V3 API similar to station arrival boards. 
 
 Uses the same criteria as the arrival boards at stations to define arriving (ARR) and boarding (BRD) trains. 
+
+To change the stop simply change STOP_ID in main.py and then replace the children platform IDs. 
+
+Currently set for Brookline Village Station in Brookline, MA.
+
+Was developed as a quick solution to an issue and is not perfect. 
+
 ~~~
 --------------------------
 | Last Updated: 18:06:42 |
