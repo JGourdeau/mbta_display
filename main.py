@@ -15,6 +15,7 @@ def jprint(obj):
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
 
+
 '''Uses the MBTA V3 api to query the predictions of a stop and reterns the incoming and outgoing
 train arrival time deltas in two seperate dataframes'''
 def subway_sign_data(STOP_ID, API_KEY):
@@ -90,9 +91,9 @@ def subway_sign_data(STOP_ID, API_KEY):
 
         # set the min string for the display
         if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in [70180, 70181]:
-            min_away_str.append('   BRD')
+            min_away_str.append('BRD')
         elif seconds <= 30:
-            min_away_str.append('   ARR')
+            min_away_str.append('ARR')
         else: 
             min_away_str.append('%s min' %str(tminus).zfill(2))
         
@@ -109,20 +110,29 @@ def subway_sign_data(STOP_ID, API_KEY):
     
     return train_df_in, train_df_out
 
+
 '''simple text output screen generation using the dataframes of incoming and outgoing trains'''
 def update_screen(train_df_in, train_df_out):
-    ret = 'LOCATION:  ' + STOP_ID + '\n'
+    ret = 'LOCATION:  ' + 'BROOKLINE VILLAGE' + '\n'
     ret = ret + '\n' + ('-------------------------------\n') + ("|  Last Updated: %s  |\n" %datetime.now().strftime("%I:%M:%S %p")) 
     ret = ret + ('-------------------------------\n') 
-    ret = ret + ('\nINBOUND:\n') + (train_df_in.to_string(header=False, index=False, col_space = [20, 20])) + ('\n')
-    ret = ret + ('\nOUTBOUND:\n') + (train_df_out.to_string(header=False, index=False, col_space = [20, 20])) + ("\n") #col_space=[20,20],
+    if len(train_df_in) == 0:
+        ret = ret + ('\nINBOUND:\n') + 'No Departures' + ('\n')
+    else: 
+        ret = ret + ('\nINBOUND:\n') + (train_df_in.to_string(header=False, index=False, col_space = [20, 20])) + ('\n')
+    if len(train_df_out) == 0: 
+        ret = ret + ('\nOUTBOUND:\n') + 'No Departures' + ('\n')
+    else:
+        ret = ret + ('\nOUTBOUND:\n') + (train_df_out.to_string(header=False, index=False, col_space = [20, 20])) + ("\n") #col_space=[20,20],
     return ret
+
 
 '''reads in credential file and returns the api_key'''
 def get_credentials(cred_file):
     with open(cred_file, 'r') as f:
         API_KEY = f.read().strip()
     return API_KEY
+
 
 '''update the preds'''
 def update():
@@ -145,8 +155,12 @@ if __name__ == '__main__':
     window = tk.Tk()
     window.configure(bg = 'black')
     window.title('MBTA Station Screen')
+    
     station_update = tk.Label(fg="orange", bg="black", justify='right', width=30, height=20, padx=25)
+    station_update.config(highlightbackground = "orange", highlightcolor= "orange")
+    
     station_update.pack()
+
 
     # get the times to arrival in a dataframe
     update()
