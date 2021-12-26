@@ -90,11 +90,11 @@ def subway_sign_data(STOP_ID, API_KEY):
 
         # set the min string for the display
         if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in [70180, 70181]:
-            min_away_str.append('BRD')
+            min_away_str.append('  BRD')
         elif seconds <= 30:
-            min_away_str.append('ARR')
+            min_away_str.append('  ARR')
         else: 
-            min_away_str.append('%s min' %tminus)
+            min_away_str.append('%s min' %str(tminus).zfill(2))
         
     # create a df of relevant data
     train_df = pd.DataFrame({'train_id':train_ids, 'arrival_time':arrival_time, 'trip_id':trip_id, 
@@ -111,11 +111,11 @@ def subway_sign_data(STOP_ID, API_KEY):
 
 '''simple text output screen generation using the dataframes of incoming and outgoing trains'''
 def update_screen(train_df_in, train_df_out):
-    ret = ''
-    ret = ret + '\n' + ('*-----------------------------*\n') + ("| Last Updated: %s  |\n" %datetime.now().strftime("%I:%M:%S %p")) 
-    ret = ret + ('*-----------------------------*\n') 
-    ret = ret + ('\nINBOUND:\n') + (train_df_in.to_string(header=False, index=False, col_space = [20, 20], justify=['left', 'right'])) + ('\n')
-    ret = ret + ('\nOUTBOUND:\n') + (train_df_out.to_string(header=False, index=False, col_space = [20, 20], justify=['left', 'right'])) + ("\n") #col_space=[20,20],
+    ret = 'LOCATION:  ' + STOP_ID + '\n'
+    ret = ret + '\n' + ('-------------------------------\n') + ("|  Last Updated: %s  |\n" %datetime.now().strftime("%I:%M:%S %p")) 
+    ret = ret + ('-------------------------------\n') 
+    ret = ret + ('\nINBOUND:\n') + (train_df_in.to_string(header=False, index=False, col_space = [20, 20])) + ('\n')
+    ret = ret + ('\nOUTBOUND:\n') + (train_df_out.to_string(header=False, index=False, col_space = [20, 20])) + ("\n") #col_space=[20,20],
     return ret
 
 '''reads in credential file and returns the api_key'''
@@ -124,9 +124,12 @@ def get_credentials(cred_file):
         API_KEY = f.read().strip()
     return API_KEY
 
-def update_window(window, screen_text):
-    pass
-
+'''update the preds'''
+def update():
+    # get the times to arrival in a dataframe
+    train_df_in, train_df_out = subway_sign_data(STOP_ID, API_KEY)
+    station_update["text"] = update_screen(train_df_in, train_df_out)
+    window.after(10000, update) # run itself again after 1000 ms
 
 
 # main
@@ -137,17 +140,18 @@ if __name__ == '__main__':
     
     # set the stop ID
     STOP_ID = 'place-bvmnl' # brookline village.
+    
+    # initialize window
+    window = tk.Tk()
+    window.configure(bg = 'black')
+    window.title('MBTA Station Screen')
+    station_update = tk.Label(fg="orange", bg="black", justify='right', width=30, height=20, padx=25)
+    station_update.pack()
 
     # get the times to arrival in a dataframe
-    train_df_in, train_df_out = subway_sign_data(STOP_ID, API_KEY)
-    
-    # update the display
-    screen_text = update_screen(train_df_in, train_df_out)
-
-    window = tk.Tk()
-    window.title('MBTA Station Screen')
-    station_update = tk.Label(text=screen_text, fg="orange", bg="black", justify='left', width=30, height=20)
-    station_update.pack()
+    update()
     window.mainloop()
+
+    
 
     
