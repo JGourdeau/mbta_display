@@ -90,9 +90,9 @@ def subway_sign_data(STOP_ID, API_KEY):
 
         # set the min string for the display
         if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in [70180, 70181]:
-            min_away_str.append('  BRD')
+            min_away_str.append('   BRD')
         elif seconds <= 30:
-            min_away_str.append('  ARR')
+            min_away_str.append('   ARR')
         else: 
             min_away_str.append('%s min' %str(tminus).zfill(2))
         
