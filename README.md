@@ -1,6 +1,6 @@
 # mbta_display
 
-A quick tkinter app which displays the predictions for Boston subway stops using mbta's V3 API similar to station arrival boards. 
+A quick tkinter app which displays the predictions for Boston subway stops using mbta's V3 API similar to the information given by station arrival boards or in a navigation app. 
 
 Uses the same criteria as the arrival boards at stations to define arriving (ARR) and boarding (BRD) trains. 
 
