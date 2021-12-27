@@ -1,4 +1,5 @@
 # imports
+from typing import Text
 import pandas as pd
 from pandas.core.window.rolling import Window
 import requests
@@ -7,6 +8,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from time import sleep
 import tkinter as tk
+from tkinter import ttk
 
 
 '''prints out a json object in a nice structure'''
@@ -19,6 +21,7 @@ def jprint(obj):
 '''Uses the MBTA V3 api to query the predictions of a stop and reterns the incoming and outgoing
 train arrival time deltas in two seperate dataframes'''
 def subway_sign_data(STOP_ID, API_KEY):
+
     # get the time of the query 
     CURRENT_TIME = datetime.now(timezone.utc)
 
@@ -47,12 +50,18 @@ def subway_sign_data(STOP_ID, API_KEY):
     direction = []
 
     # retrieve the relevant data
-    for i in response: 
+    for i in response:
+        #print(i)
+
         # get the train id
         t_id = i['relationships']['vehicle']['data']['id']
         train_ids.append(t_id)
         # get the arrival_time
-        ar_time = datetime.fromisoformat(i['attributes']['arrival_time'])
+        ar_time = i['attributes']['arrival_time']
+        if ar_time:
+            ar_time = datetime.fromisoformat(i['attributes']['arrival_time'])
+        else: 
+            ar_time = datetime.fromisoformat(i['attributes']['departure_time'])
         arrival_time.append(ar_time)
 
         # get the trip_id from the train 
@@ -80,20 +89,26 @@ def subway_sign_data(STOP_ID, API_KEY):
         min_away.append(tminus)
 
         # get the vehicle status
-        vehicle = requests.get('https://api-v3.mbta.com/vehicles/%s?api_key=%s'%(t_id, API_KEY))
-        # print(vehicle.status_code)
-        vehicle = json.loads(vehicle.text)
+        if not('schedBasedVehicle' in t_id):
+
+            vehicle = requests.get('https://api-v3.mbta.com/vehicles/%s?api_key=%s'%(t_id, API_KEY))
+            # print(vehicle.status_code)
+            vehicle = json.loads(vehicle.text)
+    
+            vehicle_status = vehicle['data']['attributes']['current_status']
+
+            #print(vehicle_status)
+            current_stop = int(vehicle['data']['relationships']['stop']['data']['id'])
+            #print(current_stop)
         
-        vehicle_status = vehicle['data']['attributes']['current_status']
-        #print(vehicle_status)
-        current_stop = int(vehicle['data']['relationships']['stop']['data']['id'])
-        #print(current_stop)
+        else: 
+            vehicle_status = 'NOT_YET_ACTIVE'
 
         # set the min string for the display
-        if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in [70180, 70181]:
-            min_away_str.append('BRD')
+        if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in CHILDREN_PLATFORMS:
+            min_away_str.append('..BRD..')
         elif seconds <= 30:
-            min_away_str.append('ARR')
+            min_away_str.append('..ARR..')
         else: 
             min_away_str.append('%s min' %str(tminus).zfill(2))
         
@@ -103,17 +118,21 @@ def subway_sign_data(STOP_ID, API_KEY):
                              'direction':direction})
 
     # return only the trains that havent left the stop 
-    train_df = train_df.loc[(train_df.min_away >= 0), :].copy()
+    train_df = train_df.loc[(train_df.min_away >= 0), :].copy().sort_values('min_away')
     
     train_df_in = train_df.loc[train_df.direction=='INBOUND',['headsign', 'min_away_str']]
     train_df_out = train_df.loc[train_df.direction=='OUTBOUND',['headsign', 'min_away_str']]
     
-    return train_df_in, train_df_out
+    last_in = min(10, len(train_df_in))
+    last_out = min(10, len(train_df_out))
+
+    return train_df_in.reindex().iloc[0:last_in, :], train_df_out.reindex().iloc[0:last_out, :]
 
 
 '''simple text output screen generation using the dataframes of incoming and outgoing trains'''
-def update_screen(train_df_in, train_df_out):
-    ret = 'LOCATION:  ' + 'BROOKLINE VILLAGE' + '\n'
+def update_screen(STOP_ID, API_KEY):
+    train_df_in, train_df_out = subway_sign_data(STOP_ID, API_KEY)
+    ret = '\nLOCATION:  ' + STOP_ID + '\n'
     ret = ret + '\n' + ('-------------------------------\n') + ("|  Last Updated: %s  |\n" %datetime.now().strftime("%I:%M:%S %p")) 
     ret = ret + ('-------------------------------\n') 
     if len(train_df_in) == 0:
@@ -124,7 +143,10 @@ def update_screen(train_df_in, train_df_out):
         ret = ret + ('\nOUTBOUND:\n') + 'No Departures' + ('\n')
     else:
         ret = ret + ('\nOUTBOUND:\n') + (train_df_out.to_string(header=False, index=False, col_space = [20, 20])) + ("\n") #col_space=[20,20],
-    return ret
+    
+    station_update["text"] = ret
+
+    return
 
 
 '''reads in credential file and returns the api_key'''
@@ -134,11 +156,34 @@ def get_credentials(cred_file):
     return API_KEY
 
 
+def place_bvmnl():
+    # set the stop ID
+    global STOP_ID 
+    global CHILDREN_PLATFORMS
+    STOP_ID = 'place-bvmnl' # brookline village.
+    CHILDREN_PLATFORMS = [70180, 70181]
+    update_screen(STOP_ID, API_KEY)
+
+def place_kencl():
+    global STOP_ID 
+    global CHILDREN_PLATFORMS
+    STOP_ID = 'place_kencl'
+    CHILDREN_PLATFORMS = [71150,71151]
+    update_screen(STOP_ID, API_KEY)
+
+
+def place_cool():
+    global STOP_ID 
+    global CHILDREN_PLATFORMS
+    STOP_ID = 'place-cool'
+    CHILDREN_PLATFORMS = [70219, 70220]
+    update_screen(STOP_ID, API_KEY)
+
+
 '''update the preds'''
 def update():
     # get the times to arrival in a dataframe
-    train_df_in, train_df_out = subway_sign_data(STOP_ID, API_KEY)
-    station_update["text"] = update_screen(train_df_in, train_df_out)
+    update_screen(STOP_ID, API_KEY)
     window.after(10000, update) # run itself again after 1000 ms
 
 
@@ -148,20 +193,35 @@ if __name__ == '__main__':
     # read in the api_key
     API_KEY = get_credentials('credentials.txt')
     
-    # set the stop ID
-    STOP_ID = 'place-bvmnl' # brookline village.
-    
     # initialize window
     window = tk.Tk()
+    window.geometry('400x600+50+50')
     window.configure(bg = 'black')
     window.title('MBTA Station Screen')
-    
-    station_update = tk.Label(fg="orange", bg="black", justify='right', width=30, height=20, padx=25)
+    station_update = tk.Label(fg="orange", bg="black", justify='right', width=30, height=80, padx=25)
     station_update.config(highlightbackground = "orange", highlightcolor= "orange")
-    
+    btn_1 = tk.Button(window,
+                      text = "Brookline Village",
+                      command = place_bvmnl, 
+                      pady=5, fg='orange', activeforeground='black')
+    btn_2 = tk.Button(window, 
+                      text='Coolidge Corner', 
+                      command=place_cool, 
+                      pady=5, fg='orange', activeforeground='black')
+    btn_3 = tk.Button(window, 
+                      text='Kenmore', 
+                      command=place_kencl, 
+                      pady=5, fg='orange', activeforeground='black')
+    btn_1.pack()
+    btn_2.pack()
+    btn_3.pack()
     station_update.pack()
+    
+    
 
-
+    # set default to place_bvmnl()
+    place_bvmnl()
+ 
     # get the times to arrival in a dataframe
     update()
     window.mainloop()
