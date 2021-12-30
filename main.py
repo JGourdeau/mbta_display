@@ -1,14 +1,12 @@
 # imports
-from typing import Text
 import pandas as pd
-from pandas.core.window.rolling import Window
 import requests
 import json
 import pandas as pd
 from datetime import datetime, timezone
 from time import sleep
 import tkinter as tk
-from tkinter import ttk
+from tkinter import Frame
 
 
 '''prints out a json object in a nice structure'''
@@ -51,66 +49,69 @@ def subway_sign_data(STOP_ID, API_KEY):
 
     # retrieve the relevant data
     for i in response:
-        #print(i)
+        # print(i)
+        # if the schedule relationship is not 'skipped'
+        if i['attributes']['schedule_relationship'] != 'SKIPPED':
+            # get the train id
+            t_id = i['relationships']['vehicle']['data']['id']
+            train_ids.append(t_id)
+            # get the arrival_time
+            ar_time = i['attributes']['arrival_time']
+            print(ar_time)
+            if ar_time:
+                ar_time = datetime.fromisoformat(i['attributes']['arrival_time'])
+                arrival_time.append(ar_time)
+            else: 
+                ar_time = datetime.fromisoformat(i['attributes']['departure_time'])
+                arrival_time.append(ar_time)
+            
+            # get the trip_id from the train 
+            trip = i['relationships']['trip']['data']['id']
+            trip_id.append(trip)
 
-        # get the train id
-        t_id = i['relationships']['vehicle']['data']['id']
-        train_ids.append(t_id)
-        # get the arrival_time
-        ar_time = i['attributes']['arrival_time']
-        if ar_time:
-            ar_time = datetime.fromisoformat(i['attributes']['arrival_time'])
-        else: 
-            ar_time = datetime.fromisoformat(i['attributes']['departure_time'])
-        arrival_time.append(ar_time)
+            # get the direction of the train
+            direction_id = int(i['attributes']['direction_id'])
 
-        # get the trip_id from the train 
-        trip = i['relationships']['trip']['data']['id']
-        trip_id.append(trip)
+            # print(direction_id)
+            if direction_id == 0:
+                direction.append('OUTBOUND')
+            else: 
+                direction.append('INBOUND')
 
-        # get the direction of the train
-        direction_id = int(i['attributes']['direction_id'])
+            # get the headsign from the trip id
+            trip = json.loads((requests.get('https://api-v3.mbta.com/trips/%s?api_key=%s'%(trip, API_KEY)).text))
+            headsign_txt = trip['data']['attributes']['headsign']
+            headsign.append(headsign_txt)
 
-        # print(direction_id)
-        if direction_id == 0:
-            direction.append('OUTBOUND')
-        else: 
-            direction.append('INBOUND')
+            # get the timedelta
+            delta = ar_time - CURRENT_TIME
+            seconds = delta.total_seconds()
+            tminus = (int(round(seconds/60, 0)))
+            min_away.append(tminus)
 
-        # get the headsign from the trip id
-        trip = json.loads((requests.get('https://api-v3.mbta.com/trips/%s?api_key=%s'%(trip, API_KEY)).text))
-        headsign_txt = trip['data']['attributes']['headsign']
-        headsign.append(headsign_txt)
+            # get the vehicle status
+            if not('schedBasedVehicle' in t_id):
 
-        # get the timedelta
-        delta = ar_time - CURRENT_TIME
-        seconds = delta.total_seconds()
-        tminus = (int(round(seconds/60, 0)))
-        min_away.append(tminus)
-
-        # get the vehicle status
-        if not('schedBasedVehicle' in t_id):
-
-            vehicle = requests.get('https://api-v3.mbta.com/vehicles/%s?api_key=%s'%(t_id, API_KEY))
-            # print(vehicle.status_code)
-            vehicle = json.loads(vehicle.text)
-    
-            vehicle_status = vehicle['data']['attributes']['current_status']
-
-            #print(vehicle_status)
-            current_stop = int(vehicle['data']['relationships']['stop']['data']['id'])
-            #print(current_stop)
+                vehicle = requests.get('https://api-v3.mbta.com/vehicles/%s?api_key=%s'%(t_id, API_KEY))
+                # print(vehicle.status_code)
+                vehicle = json.loads(vehicle.text)
         
-        else: 
-            vehicle_status = 'NOT_YET_ACTIVE'
+                vehicle_status = vehicle['data']['attributes']['current_status']
 
-        # set the min string for the display
-        if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in CHILDREN_PLATFORMS:
-            min_away_str.append('..BRD..')
-        elif seconds <= 30:
-            min_away_str.append('..ARR..')
-        else: 
-            min_away_str.append('%s min' %str(tminus).zfill(2))
+                #print(vehicle_status)
+                current_stop = int(vehicle['data']['relationships']['stop']['data']['id'])
+                #print(current_stop)
+            
+            else: 
+                vehicle_status = 'NOT_YET_ACTIVE'
+
+            # set the min string for the display
+            if seconds <= 90 and vehicle_status == 'STOPPED_AT' and current_stop in CHILDREN_PLATFORMS:
+                min_away_str.append('..BRD..')
+            elif seconds <= 30:
+                min_away_str.append('..ARR..')
+            else: 
+                min_away_str.append('%s min' %str(tminus).zfill(2))
         
     # create a df of relevant data
     train_df = pd.DataFrame({'train_id':train_ids, 'arrival_time':arrival_time, 'trip_id':trip_id, 
@@ -164,13 +165,6 @@ def place_bvmnl():
     CHILDREN_PLATFORMS = [70180, 70181]
     update_screen(STOP_ID, API_KEY)
 
-def place_kencl():
-    global STOP_ID 
-    global CHILDREN_PLATFORMS
-    STOP_ID = 'place_kencl'
-    CHILDREN_PLATFORMS = [71150,71151]
-    update_screen(STOP_ID, API_KEY)
-
 
 def place_cool():
     global STOP_ID 
@@ -186,7 +180,6 @@ def update():
     update_screen(STOP_ID, API_KEY)
     window.after(10000, update) # run itself again after 1000 ms
 
-
 # main
 if __name__ == '__main__':
     
@@ -196,29 +189,27 @@ if __name__ == '__main__':
     # initialize window
     window = tk.Tk()
     window.geometry('400x600+50+50')
-    window.configure(bg = 'black')
+    window.configure(bg='black')
     window.title('MBTA Station Screen')
-    station_update = tk.Label(fg="orange", bg="black", justify='right', width=30, height=80, padx=25)
+    station_update = tk.Label(fg="orange", justify='right', width=30, height=80, padx=25, bg='black') 
     station_update.config(highlightbackground = "orange", highlightcolor= "orange")
-    btn_1 = tk.Button(window,
+    f = Frame(window)
+
+    btn_1 = tk.Button(f,
                       text = "Brookline Village",
                       command = place_bvmnl, 
-                      pady=5, fg='orange', activeforeground='black')
-    btn_2 = tk.Button(window, 
+                      pady=25, fg='black', activeforeground='orange', highlightbackground='orange')
+    btn_2 = tk.Button(f, 
                       text='Coolidge Corner', 
                       command=place_cool, 
-                      pady=5, fg='orange', activeforeground='black')
-    btn_3 = tk.Button(window, 
-                      text='Kenmore', 
-                      command=place_kencl, 
-                      pady=5, fg='orange', activeforeground='black')
-    btn_1.pack()
-    btn_2.pack()
-    btn_3.pack()
+                      pady=25, fg='black', activeforeground='orange', highlightbackground='orange')
+    
+    btn_1.pack(side='left')
+    btn_2.pack(side='right')
+    f.pack()
     station_update.pack()
     
     
-
     # set default to place_bvmnl()
     place_bvmnl()
  
